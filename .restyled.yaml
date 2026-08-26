@@ -5,9 +5,10 @@ restylers:
       enabled: false # prefer prettier-json
   - prettier:
       include:
-        - "src/**/*.ts"
+        - "**/*.md"
+        - "**/*.yml"
+        - "**/*.yaml"
   - whitespace:
       include:
         - "**/*"
-        - "!dist/**/*"
   - "*"

@@ -9,8 +9,6 @@ on:
 
 jobs:
   release:
-    if: false # remove this when you are ready to release your action
-
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,7 +28,6 @@ jobs:
         with:
           extra_plugins: |
             conventional-changelog-conventionalcommits@9
-            @semantic-release/exec
             semantic-release-major-tag
         env:
           FORCE_COLOR: 1
