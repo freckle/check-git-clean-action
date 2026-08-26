@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          cache: yarn
+          node-version-file: ".nvmrc"
+      - run: yarn install
+      - run: yarn test
+      - run: yarn lint
+      - run: yarn build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/index.js
+
+  integration:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist # overwrite dist/index.js
+      - uses: ./

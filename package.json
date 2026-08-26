@@ -1,0 +1,39 @@
+{
+  "name": "action-name",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Action description",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && ncc build lib/main.js --minify",
+    "format": "prettier --write \"**/*.ts\"",
+    "format-check": "prettier --check \"**/*.ts\"",
+    "test": "vitest run",
+    "lint": "eslint",
+    "readme": "npx action-docs -u && prettier --write README.md"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freckle/TODO-action.git"
+  },
+  "author": "Freckle",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/exec": "^3.0.0",
+    "@actions/github": "^9.1.1"
+  },
+  "devDependencies": {
+    "@actions/glob": "^0.7.0",
+    "@eslint/js": "^10.0.1",
+    "@octokit/plugin-rest-endpoint-methods": "^18.0.0",
+    "@octokit/types": "^17.0.0",
+    "@types/node": "^24.13.3",
+    "@vercel/ncc": "^0.45.0",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  }
+}
