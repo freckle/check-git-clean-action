@@ -9,31 +9,96 @@ permissions:
   contents: read
 
 jobs:
+  # Named build because that is the required status check on main. Every case
+  # dirties the tree, asserts what the action does, then restores it.
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          cache: yarn
-          node-version-file: ".nvmrc"
-      - run: yarn install
-      - run: yarn test
-      - run: yarn lint
-      - run: yarn build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: dist
-          path: dist/index.js
 
-  integration:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - name: Clean tree passes
+        uses: ./
+
+      - run: echo dirty > untracked.txt
+      - name: Untracked file fails
+        id: untracked
+        continue-on-error: true
+        uses: ./
+      - run: |
+          test "${{ steps.untracked.outcome }}" = failure
+          rm untracked.txt
+
+      - run: echo dirty >> README.md
+      - name: Modified file fails
+        id: modified
+        continue-on-error: true
+        uses: ./
+      - run: |
+          test "${{ steps.modified.outcome }}" = failure
+          git checkout -- README.md
+
+      - run: rm README.md
+      - name: Deleted file fails
+        id: deleted
+        continue-on-error: true
+        uses: ./
+      - run: |
+          test "${{ steps.deleted.outcome }}" = failure
+          git checkout -- README.md
+
+      - run: chmod +x README.md
+      - name: Mode change fails
+        id: mode
+        continue-on-error: true
+        uses: ./
+      - run: |
+          test "${{ steps.mode.outcome }}" = failure
+          chmod 644 README.md
+
+      - run: rm README.md && ln -s LICENSE README.md
+      - name: Type change fails
+        id: typechange
+        continue-on-error: true
+        uses: ./
+      - run: |
+          test "${{ steps.typechange.outcome }}" = failure
+          rm README.md
+          git checkout -- README.md
+
+      # The tree is already dirty, so outcome alone cannot tell an executed hint
+      # from a quoted one. The absence of the files it would have created can.
+      - run: echo dirty > untracked.txt
+      - name: A hint containing shell metacharacters is not executed
+        id: hint
+        continue-on-error: true
+        uses: ./
         with:
-          name: dist
-          path: dist # overwrite dist/index.js
-      - uses: ./
+          hint: "Run `touch pwned-backtick`; $(touch pwned-subshell) && touch pwned-chain"
+      - run: |
+          test "${{ steps.hint.outcome }}" = failure
+          test ! -e pwned-backtick
+          test ! -e pwned-subshell
+          test ! -e pwned-chain
+          rm untracked.txt
+
+      # Exercises the %25/%0A escaping the annotation needs.
+      - run: echo dirty > untracked.txt
+      - name: A multi-line hint containing % does not break the script
+        id: multiline
+        continue-on-error: true
+        uses: ./
+        with:
+          hint: |
+            Run yarn build; it is 100% required
+            then commit the result
+      - run: |
+          test "${{ steps.multiline.outcome }}" = failure
+          rm untracked.txt
+
+      - run: mkdir -p node_modules/left-pad && echo x > node_modules/left-pad/index.js
+      - name: Gitignored paths are not dirt
+        uses: ./
+
+      # Also catches a hint that escaped its quotes and wrote to the workspace.
+      - name: Every case restored the tree
+        run: test -z "$(git status --porcelain --untracked-files=normal)"

@@ -1,11 +1,47 @@
-name: "Action name"
-description: "Action description"
+name: "Check Git Clean"
+description: "Fail if the working tree is dirty, e.g. committed build artifacts are out of date"
 author: "Freckle"
 inputs:
-  github-token:
-    description: "Override GitHub token, if necessary"
-    required: true
-    default: "${{ github.token }}"
+  hint:
+    description: "Message appended when the working tree is dirty, e.g. Run yarn build to update your dist/"
+    required: false
+    default: ""
 runs:
-  using: "node24"
-  main: "dist/index.js"
+  using: "composite"
+  steps:
+    - name: Check git clean
+      shell: bash
+      env:
+        # Via env, not interpolated into the script, so a hint containing shell
+        # metacharacters cannot inject.
+        HINT: ${{ inputs.hint }}
+      run: |
+        set -euo pipefail
+
+        # Assigned rather than inlined into the `if` below: set -e does not apply
+        # to an if condition, so a git that exits non-zero there contributes
+        # empty output and reads as a clean tree. --untracked-files because a
+        # caller with status.showUntrackedFiles=no would otherwise silently lose
+        # the untracked case, which is the whole reason this is status and not
+        # diff.
+        status="$(git status --porcelain --untracked-files=normal)"
+
+        if [ -z "$status" ]; then
+          echo "Working tree is clean."
+          exit 0
+        fi
+
+        # status decides, not diff: a diff never shows untracked files. The diff
+        # is logged against HEAD (so staged changes appear) purely to make the
+        # failure readable.
+        echo "$status"
+        git diff HEAD || true
+
+        # Workflow commands are single-line, so a multi-line hint would spill out
+        # of the annotation. % first, or it would re-escape the escapes.
+        HINT="${HINT//%/%25}"
+        HINT="${HINT//$'\r'/%0D}"
+        HINT="${HINT//$'\n'/%0A}"
+
+        echo "::error::Working tree is not clean.${HINT:+ ${HINT}}"
+        exit 1
